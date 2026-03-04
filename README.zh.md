@@ -376,6 +376,100 @@ PicoClaw 将数据存储在您配置的工作区中（默认：`~/.picoclaw/work
 export PICOCLAW_BUILTIN_SKILLS=/path/to/skills
 ```
 
+### 🔒 安全沙盒 (Security Sandbox)
+
+PicoClaw 默认在沙盒环境中运行。Agent 只能访问配置的工作空间内的文件并执行命令。
+
+#### 默认配置
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "workspace": "~/.picoclaw/workspace",
+      "restrict_to_workspace": true
+    }
+  }
+}
+```
+
+| 选项                    | 默认值                  | 描述                     |
+| ----------------------- | ----------------------- | ------------------------ |
+| `workspace`             | `~/.picoclaw/workspace` | Agent 的工作目录         |
+| `restrict_to_workspace` | `true`                  | 限制文件/命令访问到工作空间 |
+
+#### 受保护的工具
+
+当 `restrict_to_workspace: true` 时，以下工具会被沙盒化：
+
+| 工具          | 功能         | 限制                       |
+| ------------- | ------------ | -------------------------- |
+| `read_file`   | 读取文件     | 仅限工作空间内的文件       |
+| `write_file`  | 写入文件     | 仅限工作空间内的文件       |
+| `list_dir`    | 列出目录     | 仅限工作空间内的目录       |
+| `edit_file`   | 编辑文件     | 仅限工作空间内的文件       |
+| `append_file` | 追加文件内容 | 仅限工作空间内的文件       |
+| `exec`        | 执行命令     | 命令路径必须在工作空间内   |
+
+#### 额外的 Exec 保护
+
+即使设置 `restrict_to_workspace: false`，`exec` 工具也会阻止以下危险命令：
+
+* `rm -rf`、`del /f`、`rmdir /s` — 批量删除
+* `format`、`mkfs`、`diskpart` — 磁盘格式化
+* `dd if=` — 磁盘镜像
+* 写入 `/dev/sd[a-z]` — 直接磁盘写入
+* `shutdown`、`reboot`、`poweroff` — 系统关机
+* Fork 炸弹 `:(){ :|:& };:`
+
+#### 错误示例
+
+```
+[ERROR] tool: Tool execution failed
+{tool=exec, error=Command blocked by safety guard (path outside working dir)}
+```
+
+```
+[ERROR] tool: Tool execution failed
+{tool=exec, error=Command blocked by safety guard (dangerous pattern detected)}
+```
+
+#### 禁用限制（安全风险）
+
+如果你需要 Agent 访问工作空间外的路径：
+
+**方法 1：配置文件**
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "restrict_to_workspace": false
+    }
+  }
+}
+```
+
+**方法 2：环境变量**
+
+```bash
+export PICOCLAW_AGENTS_DEFAULTS_RESTRICT_TO_WORKSPACE=false
+```
+
+> ⚠️ **警告**：禁用此限制将允许 Agent 访问系统上的任何路径。仅在受控环境中谨慎使用。
+
+#### 安全边界一致性
+
+`restrict_to_workspace` 设置在所有执行路径上一致应用：
+
+| 执行路径     | 安全边界                 |
+| ------------ | ------------------------ |
+| 主 Agent     | `restrict_to_workspace` ✅ |
+| 子 Agent / Spawn | 继承相同限制 ✅         |
+| 心跳任务     | 继承相同限制 ✅         |
+
+所有路径共享相同的工作空间限制 — 无法通过子 Agent 或定时任务绕过安全边界。
+
 ### 心跳 / 周期性任务 (Heartbeat)
 
 PicoClaw 可以自动执行周期性任务。在工作区创建 `HEARTBEAT.md` 文件：
