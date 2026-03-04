@@ -19,6 +19,9 @@
 </div>
 
 ---
+学习路线
+[项目架构](CLAUDE.md) | [学习路线](./study/GETTING_STARTED.md)
+---
 
 🦐 **PicoClaw** 是一个受 [nanobot](https://github.com/HKUDS/nanobot) 启发的超轻量级个人 AI 助手。它采用 **Go 语言** 从零重构，经历了一个“自举”过程——即由 AI Agent 自身驱动了整个架构迁移和代码优化。
 
